@@ -240,16 +240,21 @@ def _run_download(job_id: str, url: str, format_id: str):
         fmt = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
 
     ydl_opts = {
-        "format": fmt,
-        "outtmpl": str(DOWNLOADS_DIR / f"{job_id}_%(title)s.%(ext)s"),
-        "progress_hooks": [progress_hook],
-        "noplaylist": True,
-        "quiet": True,
-        "no_warnings": True,
-        "merge_output_format": "mp4",
-        # Sanitize filenames for Windows compatibility
-        "windowsfilenames": True,
-    }
+    "format": fmt,
+    "outtmpl": str(DOWNLOADS_DIR / f"{job_id}_%(title)s.%(ext)s"),
+    "progress_hooks": [progress_hook],
+    "noplaylist": True,
+    "quiet": True,
+    "no_warnings": True,
+    "merge_output_format": "mp4",
+    "windowsfilenames": True,
+    "extractor_args": {
+        "youtube": {
+            "player_client": ["ios", "android"],
+        }
+    },
+}
+
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
