@@ -10,6 +10,8 @@ Run:
 """
 
 import glob
+import re
+import requests
 import json
 import os
 import queue
@@ -73,6 +75,7 @@ def get_video_info(url: str):
         "extract_flat": False,
     }
     try:
+        url = _reroute_youtube(url)
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
 
@@ -193,6 +196,54 @@ def download_file(job_id: str):
     )
 
 
+# ─── YouTube → Invidious Router ──────────────────────────────────────────────
+# YouTube blocks cloud server IPs. Invidious is an open-source YouTube proxy
+# that serves the same content without bot detection. yt-dlp supports it natively.
+
+INVIDIOUS_INSTANCES = [
+    "https://inv.nadeko.net",
+    "https://invidious.privacydev.net",
+    "https://yt.cdaut.de",
+    "https://invidious.nerdvpn.de",
+    "https://iv.melmac.space",
+]
+
+YT_PATTERN = re.compile(
+    r'(?:https?://)?(?:www\.|m\.)?'
+    r'(?:youtube\.com/(?:watch\?.*?v=|shorts/|embed/)|youtu\.be/)'
+    r'([a-zA-Z0-9_-]{11})'
+)
+
+def _reroute_youtube(url: str) -> str:
+    """
+    If URL is a YouTube link, swap it to a working Invidious instance.
+    Tries each instance until one responds. Falls back to original URL.
+    Non-YouTube URLs are returned unchanged.
+    """
+    match = YT_PATTERN.search(url)
+    if not match:
+        return url  # not YouTube — leave untouched
+
+    video_id = match.group(1)
+
+    for instance in INVIDIOUS_INSTANCES:
+        try:
+            resp = requests.get(
+                f"{instance}/api/v1/videos/{video_id}",
+                timeout=6,
+                headers={"User-Agent": "Mozilla/5.0"},
+            )
+            if resp.status_code == 200:
+                rerouted = f"{instance}/watch?v={video_id}"
+                print(f"[*] YouTube rerouted via Invidious: {instance}")
+                return rerouted
+        except Exception:
+            continue  # try next instance
+
+    print("[!] All Invidious instances failed — trying YouTube directly")
+    return url  # last resort fallback
+
+
 # ─── Background Download Worker ──────────────────────────────────────────────
 
 def _run_download(job_id: str, url: str, format_id: str):
@@ -257,6 +308,7 @@ def _run_download(job_id: str, url: str, format_id: str):
 
 
     try:
+        url = _reroute_youtube(url)  # swap YouTube → Invidious if needed
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
 
