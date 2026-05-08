@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VideoExtracterFromURL</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #07080f;
+      --surface:   #0d0f1a;
+      --panel:     #111420;
+      --border:    #1e2236;
+      --border2:   #252a42;
+      --cyan:      #00e5ff;
+      --cyan-dim:  #00b8cc;
+      --cyan-glow: rgba(0, 229, 255, 0.15);
+      --cyan-glow2:rgba(0, 229, 255, 0.06);
+      --green:     #00ff88;
+      --red:       #ff4466;
+      --amber:     #ffb300;
+      --text:      #c8d0e8;
+      --text-dim:  #5a627a;
+      --text-mid:  #8892a8;
+      --mono:      'JetBrains Mono', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ── Grid Background ──────────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────── */
+    .app {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────── */
+    header {
+      margin-bottom: 48px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 6px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--cyan-glow);
+      border: 1px solid var(--cyan);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .logo-text {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #fff;
+    }
+
+    .logo-text span { color: var(--cyan); }
+
+    .tagline {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding-left: 50px;
+    }
+
+    /* ── Panel ────────────────────────────────────────────────────── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 24px;
+      margin-bottom: 16px;
+      position: relative;
+    }
+
+    .panel::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, var(--cyan), transparent 60%);
+      opacity: 0.5;
+    }
+
+    .panel-label {
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── URL Input ────────────────────────────────────────────────── */
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .url-input {
+      flex: 1;
+      background: var(--panel);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 12px 16px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .url-input::placeholder { color: var(--text-dim); }
+
+    .url-input:focus {
+      border-color: var(--cyan-dim);
+      box-shadow: 0 0 0 1px var(--cyan-dim), inset 0 0 20px var(--cyan-glow2);
+    }
+
+    /* ── Buttons ──────────────────────────────────────────────────── */
+    .btn {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      border: 1px solid;
+      padding: 12px 20px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: var(--cyan-glow);
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--cyan);
+      color: var(--bg);
+      box-shadow: 0 0 20px var(--cyan-glow);
+    }
+
+    .btn-success {
+      background: rgba(0,255,136,0.1);
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .btn-success:hover:not(:disabled) {
+      background: var(--green);
+      color: var(--bg);
+      box-shadow: 0 0 20px rgba(0,255,136,0.3);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border-color: var(--border2);
+      color: var(--text-mid);
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+      border-color: var(--text-mid);
+      color: var(--text);
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-full { width: 100%; }
+
+    /* ── Spinner ──────────────────────────────────────────────────── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .spinner {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border: 1px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    /* ── Video Info Card ──────────────────────────────────────────── */
+    #info-card { display: none; }
+
+    .video-meta {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .video-thumb {
+      width: 140px;
+      height: 79px;
+      object-fit: cover;
+      border: 1px solid var(--border2);
+      flex-shrink: 0;
+      background: var(--panel);
+    }
+
+    .video-thumb-placeholder {
+      width: 140px;
+      height: 79px;
+      background: var(--panel);
+      border: 1px solid var(--border2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .video-details { flex: 1; min-width: 0; }
+
+    .video-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 16px;
+    }
+
+    .meta-item { font-size: 11px; }
+    .meta-key { color: var(--text-dim); }
+    .meta-val { color: var(--text-mid); }
+
+    /* ── Format Selector ──────────────────────────────────────────── */
+    .format-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .format-select {
+      flex: 1;
+      background: var(--panel);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 10px 12px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .format-select:focus { border-color: var(--cyan-dim); }
+    .format-select option { background: var(--panel); }
+
+    /* ── Progress Section ─────────────────────────────────────────── */
+    #progress-card { display: none; }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+    }
+
+    .progress-filename {
+      font-size: 11px;
+      color: var(--text-mid);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 60%;
+    }
+
+    .progress-pct {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--cyan);
+      letter-spacing: -0.02em;
+    }
+
+    /* ── Bar ──────────────────────────────────────────────────────── */
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 6px var(--cyan-dim); }
+      50% { box-shadow: 0 0 14px var(--cyan); }
+    }
+
+    .bar-track {
+      height: 4px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      margin-bottom: 14px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: var(--cyan);
+      width: 0%;
+      transition: width 0.4s ease;
+      animation: pulse-glow 1.5s ease-in-out infinite;
+    }
+
+    .bar-fill.done {
+      background: var(--green);
+      animation: none;
+      box-shadow: 0 0 8px var(--green);
+    }
+
+    .bar-fill.error {
+      background: var(--red);
+      animation: none;
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .stat-box {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+    }
+
+    .stat-label {
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--cyan);
+    }
+
+    .stat-value.done { color: var(--green); }
+    .stat-value.error { color: var(--red); }
+
+    /* ── Status Messages ──────────────────────────────────────────── */
+    .status-msg {
+      font-size: 11px;
+      padding: 8px 14px;
+      border-left: 2px solid;
+      margin-top: 14px;
+    }
+
+    .status-msg.info  { border-color: var(--cyan);  color: var(--cyan-dim);  background: var(--cyan-glow2); }
+    .status-msg.ok    { border-color: var(--green); color: var(--green);     background: rgba(0,255,136,0.05); }
+    .status-msg.err   { border-color: var(--red);   color: var(--red);       background: rgba(255,68,102,0.05); }
+
+    /* ── Save Button ──────────────────────────────────────────────── */
+    #save-btn { display: none; margin-top: 14px; }
+
+    /* ── History ──────────────────────────────────────────────────── */
+    #history-card { display: none; }
+
+    .history-list { list-style: none; }
+
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+    }
+
+    .history-item:last-child { border-bottom: none; }
+
+    .history-title {
+      font-size: 12px;
+      color: var(--text);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-badge {
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      padding: 2px 8px;
+      border: 1px solid;
+    }
+
+    .badge-ok  { border-color: var(--green); color: var(--green); }
+    .badge-err { border-color: var(--red);   color: var(--red); }
+
+    /* ── Divider ──────────────────────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 24px 0;
+    }
+
+    /* ── Blink cursor ─────────────────────────────────────────────── */
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    .cursor::after {
+      content: '█';
+      color: var(--cyan);
+      animation: blink 1s step-end infinite;
+      margin-left: 2px;
+    }
+
+    /* ── Fade in ──────────────────────────────────────────────────── */
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fadein { animation: fadein 0.3s ease both; }
+
+    /* ── Scrollbar ────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border2); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">⬇</div>
+      <div class="logo-text">Video<span>Extracter</span>FromURL</div>
+    </div>
+    <div class="tagline">Universal · 1000+ platforms · Real-time progress</div>
+  </header>
+
+  <!-- Step 1: URL Input -->
+  <div class="panel fadein" id="url-panel">
+    <div class="panel-label">01 — Enter URL</div>
+    <div class="input-row">
+      <input
+        type="text"
+        class="url-input cursor"
+        id="url-input"
+        placeholder="https://youtube.com/watch?v=... or any video URL"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button class="btn btn-primary" id="analyze-btn" onclick="analyzeUrl()">
+        Analyze
+      </button>
+    </div>
+    <div id="analyze-status"></div>
+  </div>
+
+  <!-- Step 2: Video Info + Format -->
+  <div class="panel fadein" id="info-card">
+    <div class="panel-label">02 — Video Info</div>
+
+    <div class="video-meta">
+      <div id="thumb-container">
+        <div class="video-thumb-placeholder">▶</div>
+      </div>
+      <div class="video-details">
+        <div class="video-title" id="video-title">—</div>
+        <div class="meta-grid">
+          <div class="meta-item">
+            <span class="meta-key">Platform </span>
+            <span class="meta-val" id="meta-platform">—</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-key">Duration </span>
+            <span class="meta-val" id="meta-duration">—</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-key">Uploader </span>
+            <span class="meta-val" id="meta-uploader">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="format-row">
+      <select class="format-select" id="format-select">
+        <option value="best">Best Quality (auto)</option>
+      </select>
+      <button class="btn btn-primary" id="download-btn" onclick="startDownload()">
+        Download
+      </button>
+      <button class="btn btn-ghost" onclick="resetAll()">Reset</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Progress -->
+  <div class="panel fadein" id="progress-card">
+    <div class="panel-label">03 — Download Progress</div>
+
+    <div class="progress-header">
+      <div class="progress-filename" id="prog-filename">Initializing...</div>
+      <div class="progress-pct" id="prog-pct">0%</div>
+    </div>
+
+    <div class="bar-track">
+      <div class="bar-fill" id="bar-fill"></div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-label">Speed</div>
+        <div class="stat-value" id="stat-speed">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">ETA</div>
+        <div class="stat-value" id="stat-eta">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Size</div>
+        <div class="stat-value" id="stat-size">—</div>
+      </div>
+    </div>
+
+    <div id="prog-status"></div>
+
+    <button class="btn btn-success btn-full" id="save-btn" onclick="saveFile()">
+      ↓ &nbsp; Save File
+    </button>
+  </div>
+
+  <!-- History -->
+  <div class="panel fadein" id="history-card">
+    <div class="panel-label">Session History</div>
+    <ul class="history-list" id="history-list"></ul>
+  </div>
+
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let currentJobId = null;
+  let currentUrl   = null;
+  let eventSource  = null;
+  const history    = [];
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function fmt_bytes(bytes) {
+    if (!bytes || bytes === 0) return '—';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function fmt_speed(mbps) {
+    if (!mbps || mbps === 0) return '—';
+    return mbps.toFixed(1) + ' MB/s';
+  }
+
+  function fmt_eta(secs) {
+    if (!secs || secs === 0) return '—';
+    if (secs < 60) return secs + 's';
+    return Math.floor(secs / 60) + 'm ' + (secs % 60) + 's';
+  }
+
+  function setStatus(container, msg, type = 'info') {
+    container.innerHTML = `<div class="status-msg ${type}">${msg}</div>`;
+  }
+
+  function show(id) { document.getElementById(id).style.display = 'block'; }
+  function hide(id) { document.getElementById(id).style.display = 'none'; }
+
+  // ── Step 1: Analyze ────────────────────────────────────────────────────────
+  async function analyzeUrl() {
+    const urlInput   = document.getElementById('url-input');
+    const analyzeBtn = document.getElementById('analyze-btn');
+    const statusDiv  = document.getElementById('analyze-status');
+    const url        = urlInput.value.trim();
+
+    if (!url) { setStatus(statusDiv, 'Please enter a URL.', 'err'); return; }
+
+    currentUrl = url;
+    analyzeBtn.disabled = true;
+    analyzeBtn.innerHTML = '<span class="spinner"></span>Analyzing';
+    setStatus(statusDiv, 'Fetching video metadata...', 'info');
+    hide('info-card');
+
+    try {
+      const res  = await fetch(`/api/info?url=${encodeURIComponent(url)}`);
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.detail || 'Failed to fetch info');
+
+      // Populate info card
+      document.getElementById('video-title').textContent    = data.title;
+      document.getElementById('meta-platform').textContent  = data.platform;
+      document.getElementById('meta-duration').textContent  = data.duration;
+      document.getElementById('meta-uploader').textContent  = data.uploader || '—';
+
+      // Thumbnail
+      const thumbContainer = document.getElementById('thumb-container');
+      if (data.thumbnail) {
+        thumbContainer.innerHTML =
+          `<img class="video-thumb" src="${data.thumbnail}" alt="thumbnail" onerror="this.style.display='none'"/>`;
+      }
+
+      // Formats
+      const sel = document.getElementById('format-select');
+      sel.innerHTML = '<option value="best">⚡ Best Quality (auto)</option>';
+      (data.formats || []).forEach(f => {
+        const size = f.filesize ? ` · ${fmt_bytes(f.filesize)}` : '';
+        const opt  = document.createElement('option');
+        opt.value       = f.format_id;
+        opt.textContent = `${f.resolution} · ${f.ext.toUpperCase()}${size} ${f.note ? '· ' + f.note : ''}`;
+        sel.appendChild(opt);
+      });
+
+      setStatus(statusDiv, '✓ Metadata loaded. Select format and click Download.', 'ok');
+      show('info-card');
+
+    } catch (err) {
+      setStatus(statusDiv, `✗ ${err.message}`, 'err');
+    } finally {
+      analyzeBtn.disabled = false;
+      analyzeBtn.textContent = 'Analyze';
+    }
+  }
+
+  // Allow Enter key on input
+  document.getElementById('url-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') analyzeUrl();
+  });
+
+  // ── Step 2: Download ───────────────────────────────────────────────────────
+  async function startDownload() {
+    const formatId   = document.getElementById('format-select').value;
+    const dlBtn      = document.getElementById('download-btn');
+
+    if (!currentUrl) return;
+
+    dlBtn.disabled = true;
+    dlBtn.innerHTML = '<span class="spinner"></span>Starting';
+
+    // Show progress panel
+    show('progress-card');
+    document.getElementById('save-btn').style.display = 'none';
+    document.getElementById('prog-status').innerHTML  = '';
+    document.getElementById('bar-fill').className     = 'bar-fill';
+    document.getElementById('bar-fill').style.width   = '0%';
+    document.getElementById('prog-pct').textContent   = '0%';
+
+    try {
+      const res  = await fetch('/api/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: currentUrl, format_id: formatId }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.detail || 'Failed to start download');
+
+      currentJobId = data.job_id;
+      dlBtn.textContent = 'Downloading...';
+      connectSSE(currentJobId);
+
+    } catch (err) {
+      setStatus(document.getElementById('prog-status'), `✗ ${err.message}`, 'err');
+      dlBtn.disabled  = false;
+      dlBtn.textContent = 'Download';
+    }
+  }
+
+  // ── SSE Progress Stream ────────────────────────────────────────────────────
+  function connectSSE(jobId) {
+    if (eventSource) eventSource.close();
+
+    eventSource = new EventSource(`/api/progress/${jobId}`);
+
+    eventSource.onmessage = (e) => {
+      const ev = JSON.parse(e.data);
+
+      if (ev.type === 'ping') return;
+
+      if (ev.type === 'progress') {
+        const pct = ev.percent || 0;
+        document.getElementById('bar-fill').style.width = pct + '%';
+        document.getElementById('prog-pct').textContent = pct.toFixed(1) + '%';
+        document.getElementById('stat-speed').textContent = fmt_speed(ev.speed);
+        document.getElementById('stat-eta').textContent   = fmt_eta(ev.eta);
+        document.getElementById('stat-size').textContent  = fmt_bytes(ev.total);
+        document.getElementById('prog-filename').textContent = 'Downloading...';
+      }
+
+      if (ev.type === 'processing') {
+        document.getElementById('bar-fill').style.width   = '99%';
+        document.getElementById('prog-pct').textContent   = '99%';
+        document.getElementById('prog-filename').textContent = 'Processing / merging...';
+        document.getElementById('stat-speed').textContent = '—';
+        document.getElementById('stat-eta').textContent   = '—';
+      }
+
+      if (ev.type === 'finished') {
+        const bar = document.getElementById('bar-fill');
+        bar.style.width = '100%';
+        bar.className   = 'bar-fill done';
+        document.getElementById('prog-pct').textContent      = '100%';
+        document.getElementById('prog-filename').textContent = ev.filename;
+        document.getElementById('stat-speed').textContent    = '✓';
+        document.getElementById('stat-eta').textContent      = 'Done';
+        document.getElementById('stat-size').textContent     = fmt_bytes(ev.filesize);
+        document.getElementById('stat-speed').className      = 'stat-value done';
+        document.getElementById('stat-eta').className        = 'stat-value done';
+        setStatus(document.getElementById('prog-status'),
+          `✓ <strong>${ev.title || ev.filename}</strong> is ready.`, 'ok');
+
+        document.getElementById('save-btn').style.display = 'block';
+        document.getElementById('download-btn').textContent = 'Download';
+        document.getElementById('download-btn').disabled    = false;
+
+        addHistory(ev.title || ev.filename, true, currentJobId);
+        eventSource.close();
+      }
+
+      if (ev.type === 'error') {
+        const bar = document.getElementById('bar-fill');
+        bar.className = 'bar-fill error';
+        document.getElementById('stat-speed').textContent  = 'ERR';
+        document.getElementById('stat-speed').className    = 'stat-value error';
+        setStatus(document.getElementById('prog-status'), `✗ ${ev.message}`, 'err');
+        document.getElementById('download-btn').textContent = 'Retry';
+        document.getElementById('download-btn').disabled    = false;
+        addHistory('Error: ' + ev.message.substring(0, 60), false, null);
+        eventSource.close();
+      }
+    };
+
+    eventSource.onerror = () => {
+      setStatus(document.getElementById('prog-status'),
+        'Connection to server lost. Is the server running?', 'err');
+      eventSource.close();
+    };
+  }
+
+  // ── Save File ──────────────────────────────────────────────────────────────
+  function saveFile() {
+    if (!currentJobId) return;
+    window.location.href = `/api/file/${currentJobId}`;
+  }
+
+  // ── History ────────────────────────────────────────────────────────────────
+  function addHistory(title, success, jobId) {
+    history.unshift({ title, success, jobId });
+    const card = document.getElementById('history-card');
+    const list = document.getElementById('history-list');
+    show('history-card');
+    list.innerHTML = history.map(h => `
+      <li class="history-item">
+        <span class="history-title">${h.title}</span>
+        ${h.success && h.jobId
+          ? `<a href="/api/file/${h.jobId}" class="history-badge badge-ok">SAVED</a>`
+          : `<span class="history-badge badge-err">FAILED</span>`}
+      </li>
+    `).join('');
+  }
+
+  // ── Reset ──────────────────────────────────────────────────────────────────
+  function resetAll() {
+    if (eventSource) eventSource.close();
+    currentJobId = null;
+    currentUrl   = null;
+    document.getElementById('url-input').value = '';
+    document.getElementById('analyze-status').innerHTML = '';
+    hide('info-card');
+    hide('progress-card');
+    document.getElementById('url-input').focus();
+  }
+</script>
+</body>
+</html>
